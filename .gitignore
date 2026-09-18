@@ -1,0 +1,6 @@
+# Ignorar backups de base de datos
+*.bak
+
+# Ignorar datos crudos (Opcional, pero muy recomendado)
+Proyecto_F1/raw/*.csv
+Proyecto_F1/raw/*.gz
