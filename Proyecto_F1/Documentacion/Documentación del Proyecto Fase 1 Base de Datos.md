@@ -74,3 +74,5 @@ Validación estricta de países con mayor cantidad de oros oficiales en la histo
 Comprobación de registro de atletas que compitieron pero no obtuvieron medalla, evidenciando que el motor procesa el estado de ausencia correctamente con cláusulas `IS NULL`.
 
 ![image.png](image%204.png)
+
+![image.png](image%205.png)

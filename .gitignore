@@ -6,3 +6,5 @@ Proyecto_F1/raw/*.csv
 Proyecto_F1/raw/*.md
 Proyecto_F1/raw/*.gz
 Proyecto_F1/scripts/.vs/
+Proyecto_F1/*.zip
+*.zip
