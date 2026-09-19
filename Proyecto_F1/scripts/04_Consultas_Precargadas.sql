@@ -88,3 +88,51 @@ FROM POBLACION_PAIS PP
 INNER JOIN PAIS P ON P.id_pais = PP.id_pais
 WHERE P.codigo_noc = 'GUA'
 ORDER BY PP.anio DESC;
+
+-- =========================================================================
+
+-- 1. EL MEDALLERO REAL (Deduplicando eventos por equipo para no inflar medallas)
+-- Muestra el Top 5 de países con más medallas de ORO oficiales.
+SELECT TOP 5 
+    P.nombre AS Pais,
+    COUNT(DISTINCT CONCAT(PAR.id_edicion, '-', PAR.id_evento)) AS Oros_Oficiales
+FROM PARTICIPACION PAR
+INNER JOIN PAIS P ON PAR.id_pais_representado = P.id_pais
+WHERE PAR.medalla = 'Gold'
+GROUP BY P.nombre
+ORDER BY Oros_Oficiales DESC;
+
+-- 2. HISTORIAL DE SEDES
+-- Muestra cuándo y dónde ha sido sede un país
+SELECT 
+    P.nombre AS Pais_Anfitrion,
+    S.ciudad AS Ciudad_Sede,
+    EJ.anio AS Anio,
+    EJ.temporada AS Temporada
+FROM SEDE S
+INNER JOIN PAIS P ON S.id_pais = P.id_pais
+INNER JOIN EDICION_JUEGOS EJ ON S.id_sede = EJ.id_sede
+WHERE P.codigo_noc = 'FRA' OR P.codigo_iso3 = 'FRA'
+ORDER BY EJ.anio;
+
+-- 3. MANEJO DE NULOS (Ausencia de datos)
+-- Atletas de Guatemala que participaron pero no ganaron medalla
+SELECT DISTINCT 
+    A.nombre AS Atleta,
+    E.nombre AS Evento,
+    EJ.anio AS Anio
+FROM PARTICIPACION PAR
+INNER JOIN ATLETA A ON PAR.id_atleta = A.id_atleta
+INNER JOIN PAIS P ON PAR.id_pais_representado = P.id_pais
+INNER JOIN EVENTO E ON PAR.id_evento = E.id_evento
+INNER JOIN EDICION_JUEGOS EJ ON PAR.id_edicion = EJ.id_edicion
+WHERE P.codigo_noc = 'GUA' AND PAR.medalla IS NULL;
+
+
+
+-- PRUEBA DE STORED PROCEDURES (Para ejecutar en vivo)
+-- Ejecutar buscando un atleta específico
+EXEC sp_ConsultarAtleta @nombre_atleta = 'Michael Fred Phelps';
+
+-- Ejecutar buscando un país (Ejemplo: Estados Unidos)
+EXEC sp_ConsultarPais @codigo_o_nombre = 'USA';
