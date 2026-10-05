@@ -1,0 +1,35 @@
+REM --- 1. Carga Inicial y Full Backup ---
+sqlcmd -S localhost -E -C -i "C:\Backups_Fase2\Scripts_Deportista\01_Carga_Inicial_Deportista.sql"
+sqlcmd -S localhost -E -C -Q "BACKUP DATABASE OlimpiadasDB_Atleta TO DISK = 'C:\Backups_Fase2\Carga_Deportista\OlimpiadasDB_Atleta_Full.bak' WITH FORMAT, INIT, NAME = 'Full Backup Atleta', STATS = 10;"
+
+REM --- 2. Sub-carga 1 (Usain Bolt 2004) y Diff 1 ---
+sqlcmd -S localhost -E -C -i "C:\Backups_Fase2\Scripts_Deportista\02_Carga_Bolt_2004.sql"
+sqlcmd -S localhost -E -C -Q "BACKUP DATABASE OlimpiadasDB_Atleta TO DISK = 'C:\Backups_Fase2\Carga_Deportista\OlimpiadasDB_Atleta_Diff_1_2004.bak' WITH DIFFERENTIAL, FORMAT, INIT, NAME = 'Diff 1 Bolt 2004', STATS = 10;"
+
+REM --- 3. Sub-carga 2 (Usain Bolt 2008) y Diff 2 ---
+sqlcmd -S localhost -E -C -i "C:\Backups_Fase2\Scripts_Deportista\03_Carga_Bolt_2008.sql"
+sqlcmd -S localhost -E -C -Q "BACKUP DATABASE OlimpiadasDB_Atleta TO DISK = 'C:\Backups_Fase2\Carga_Deportista\OlimpiadasDB_Atleta_Diff_2_2008.bak' WITH DIFFERENTIAL, FORMAT, INIT, NAME = 'Diff 2 Bolt 2008', STATS = 10;"
+
+REM --- 4. Sub-carga 3 (Usain Bolt 2012) y Diff 3 ---
+sqlcmd -S localhost -E -C -i "C:\Backups_Fase2\Scripts_Deportista\04_Carga_Bolt_2012.sql"
+sqlcmd -S localhost -E -C -Q "BACKUP DATABASE OlimpiadasDB_Atleta TO DISK = 'C:\Backups_Fase2\Carga_Deportista\OlimpiadasDB_Atleta_Diff_3_2012.bak' WITH DIFFERENTIAL, FORMAT, INIT, NAME = 'Diff 3 Bolt 2012', STATS = 10;"
+
+REM --- 5. Eliminar y Restaurar Full ---
+sqlcmd -S localhost -E -C -Q "ALTER DATABASE OlimpiadasDB_Atleta SET SINGLE_USER WITH ROLLBACK IMMEDIATE; DROP DATABASE OlimpiadasDB_Atleta;"
+sqlcmd -S localhost -E -C -Q "RESTORE DATABASE OlimpiadasDB_Atleta FROM DISK = 'C:\Backups_Fase2\Carga_Deportista\OlimpiadasDB_Atleta_Full.bak' WITH RECOVERY, STATS = 10;"
+sqlcmd -S localhost -E -C -i "C:\Backups_Fase2\Scripts_Deportista\05_Validar_Restauracion_Deportista.sql"
+
+REM --- 6. Eliminar y Restaurar Diff 1 ---
+sqlcmd -S localhost -E -C -Q "ALTER DATABASE OlimpiadasDB_Atleta SET SINGLE_USER WITH ROLLBACK IMMEDIATE; DROP DATABASE OlimpiadasDB_Atleta;"
+sqlcmd -S localhost -E -C -Q "RESTORE DATABASE OlimpiadasDB_Atleta FROM DISK = 'C:\Backups_Fase2\Carga_Deportista\OlimpiadasDB_Atleta_Full.bak' WITH NORECOVERY; RESTORE DATABASE OlimpiadasDB_Atleta FROM DISK = 'C:\Backups_Fase2\Carga_Deportista\OlimpiadasDB_Atleta_Diff_1_2004.bak' WITH RECOVERY, STATS = 10;"
+sqlcmd -S localhost -E -C -i "C:\Backups_Fase2\Scripts_Deportista\05_Validar_Restauracion_Deportista.sql"
+
+REM --- 7. Eliminar y Restaurar Diff 2 ---
+sqlcmd -S localhost -E -C -Q "ALTER DATABASE OlimpiadasDB_Atleta SET SINGLE_USER WITH ROLLBACK IMMEDIATE; DROP DATABASE OlimpiadasDB_Atleta;"
+sqlcmd -S localhost -E -C -Q "RESTORE DATABASE OlimpiadasDB_Atleta FROM DISK = 'C:\Backups_Fase2\Carga_Deportista\OlimpiadasDB_Atleta_Full.bak' WITH NORECOVERY; RESTORE DATABASE OlimpiadasDB_Atleta FROM DISK = 'C:\Backups_Fase2\Carga_Deportista\OlimpiadasDB_Atleta_Diff_2_2008.bak' WITH RECOVERY, STATS = 10;"
+sqlcmd -S localhost -E -C -i "C:\Backups_Fase2\Scripts_Deportista\05_Validar_Restauracion_Deportista.sql"
+
+REM --- 8. Eliminar y Restaurar Diff 3 ---
+sqlcmd -S localhost -E -C -Q "ALTER DATABASE OlimpiadasDB_Atleta SET SINGLE_USER WITH ROLLBACK IMMEDIATE; DROP DATABASE OlimpiadasDB_Atleta;"
+sqlcmd -S localhost -E -C -Q "RESTORE DATABASE OlimpiadasDB_Atleta FROM DISK = 'C:\Backups_Fase2\Carga_Deportista\OlimpiadasDB_Atleta_Full.bak' WITH NORECOVERY; RESTORE DATABASE OlimpiadasDB_Atleta FROM DISK = 'C:\Backups_Fase2\Carga_Deportista\OlimpiadasDB_Atleta_Diff_3_2012.bak' WITH RECOVERY, STATS = 10;"
+sqlcmd -S localhost -E -C -i "C:\Backups_Fase2\Scripts_Deportista\05_Validar_Restauracion_Deportista.sql"

@@ -1,0 +1,82 @@
+USE master;
+GO
+
+IF EXISTS (SELECT name FROM sys.databases WHERE name = N'OlimpiadasDB_Deporte')
+BEGIN
+    ALTER DATABASE OlimpiadasDB_Deporte SET SINGLE_USER WITH ROLLBACK IMMEDIATE;
+    DROP DATABASE OlimpiadasDB_Deporte;
+END
+GO
+
+CREATE DATABASE OlimpiadasDB_Deporte;
+GO
+ALTER DATABASE OlimpiadasDB_Deporte SET RECOVERY FULL;
+GO
+
+USE OlimpiadasDB_Deporte;
+GO
+
+CREATE TABLE PAIS (id_pais INT PRIMARY KEY, nombre VARCHAR(255) NOT NULL, codigo_noc VARCHAR(10), codigo_iso3 VARCHAR(10));
+CREATE TABLE POBLACION_PAIS (id_poblacion INT PRIMARY KEY, id_pais INT NOT NULL FOREIGN KEY REFERENCES PAIS(id_pais), anio INT NOT NULL, cantidad_poblacion BIGINT NOT NULL);
+CREATE TABLE SEDE (id_sede INT PRIMARY KEY, ciudad VARCHAR(255) NOT NULL, id_pais INT NOT NULL FOREIGN KEY REFERENCES PAIS(id_pais));
+CREATE TABLE EDICION_JUEGOS (id_edicion INT PRIMARY KEY, anio INT NOT NULL, temporada VARCHAR(50) NOT NULL, id_sede INT NOT NULL FOREIGN KEY REFERENCES SEDE(id_sede));
+CREATE TABLE DEPORTE (id_deporte INT PRIMARY KEY, nombre VARCHAR(255) NOT NULL);
+CREATE TABLE EVENTO (id_evento INT PRIMARY KEY, nombre VARCHAR(255) NOT NULL, id_deporte INT NOT NULL FOREIGN KEY REFERENCES DEPORTE(id_deporte), es_por_equipo BIT NOT NULL DEFAULT 0);
+CREATE TABLE FUENTE_DATOS (id_fuente INT PRIMARY KEY, nombre_archivo VARCHAR(255) NOT NULL);
+CREATE TABLE ATLETA (id_atleta INT PRIMARY KEY, nombre VARCHAR(255) NOT NULL, genero VARCHAR(50) NULL, altura FLOAT NULL, peso FLOAT NULL, id_origen_bios VARCHAR(100) NULL, id_origen_kaggle VARCHAR(100) NULL);
+CREATE TABLE PARTICIPACION (
+    id_participacion INT PRIMARY KEY,
+    id_atleta INT NOT NULL FOREIGN KEY REFERENCES ATLETA(id_atleta),
+    id_edicion INT NOT NULL FOREIGN KEY REFERENCES EDICION_JUEGOS(id_edicion),
+    id_evento INT NOT NULL FOREIGN KEY REFERENCES EVENTO(id_evento),
+    id_pais_representado INT NOT NULL FOREIGN KEY REFERENCES PAIS(id_pais),
+    id_fuente INT NOT NULL FOREIGN KEY REFERENCES FUENTE_DATOS(id_fuente),
+    medalla VARCHAR(50) NULL,
+    edad_participacion INT NULL
+);
+GO
+
+-- Insertar catálogos y carga inicial (excluyendo el deporte Athletics en 2016, 2020 y 2024)
+INSERT INTO PAIS SELECT * FROM OlimpiadasDB.dbo.PAIS;
+INSERT INTO POBLACION_PAIS SELECT * FROM OlimpiadasDB.dbo.POBLACION_PAIS;
+INSERT INTO SEDE SELECT * FROM OlimpiadasDB.dbo.SEDE;
+INSERT INTO EDICION_JUEGOS SELECT * FROM OlimpiadasDB.dbo.EDICION_JUEGOS;
+INSERT INTO DEPORTE SELECT * FROM OlimpiadasDB.dbo.DEPORTE;
+INSERT INTO EVENTO SELECT * FROM OlimpiadasDB.dbo.EVENTO;
+INSERT INTO FUENTE_DATOS SELECT * FROM OlimpiadasDB.dbo.FUENTE_DATOS;
+INSERT INTO ATLETA SELECT * FROM OlimpiadasDB.dbo.ATLETA;
+
+INSERT INTO PARTICIPACION
+SELECT PAR.*
+FROM OlimpiadasDB.dbo.PARTICIPACION PAR
+INNER JOIN OlimpiadasDB.dbo.EDICION_JUEGOS EJ ON EJ.id_edicion = PAR.id_edicion
+INNER JOIN OlimpiadasDB.dbo.EVENTO EV ON EV.id_evento = PAR.id_evento
+INNER JOIN OlimpiadasDB.dbo.DEPORTE D ON D.id_deporte = EV.id_deporte
+WHERE NOT (D.nombre = 'Athletics' AND EJ.anio IN (2016, 2020, 2024));
+GO
+
+-- Validación: SELECT COUNT(*)
+SELECT CAST('PAIS' AS VARCHAR(20)) AS Tabla, COUNT(*) AS TotalRegistros FROM PAIS
+UNION ALL SELECT 'POBLACION_PAIS', COUNT(*) FROM POBLACION_PAIS
+UNION ALL SELECT 'SEDE', COUNT(*) FROM SEDE
+UNION ALL SELECT 'EDICION_JUEGOS', COUNT(*) FROM EDICION_JUEGOS
+UNION ALL SELECT 'DEPORTE', COUNT(*) FROM DEPORTE
+UNION ALL SELECT 'EVENTO', COUNT(*) FROM EVENTO
+UNION ALL SELECT 'FUENTE_DATOS', COUNT(*) FROM FUENTE_DATOS
+UNION ALL SELECT 'ATLETA', COUNT(*) FROM ATLETA
+UNION ALL SELECT 'PARTICIPACION', COUNT(*) FROM PARTICIPACION;
+
+-- Muestra SELECT *
+SELECT TOP 5 id_participacion, id_atleta, id_edicion, id_evento, id_pais_representado, CAST(ISNULL(medalla, 'NULL') AS VARCHAR(10)) AS medalla 
+FROM PARTICIPACION ORDER BY id_participacion DESC;
+
+-- Nivel de fragmentación
+SELECT 
+    CAST(OBJECT_NAME(ips.object_id) AS VARCHAR(22)) AS NombreTabla,
+    CAST(i.name AS VARCHAR(32)) AS NombreIndice,
+    ROUND(ips.avg_fragmentation_in_percent, 2) AS Frag_Pct,
+    ips.page_count AS Paginas
+FROM sys.dm_db_index_physical_stats(DB_ID('OlimpiadasDB_Deporte'), NULL, NULL, NULL, 'LIMITED') ips
+INNER JOIN sys.indexes i ON ips.object_id = i.object_id AND ips.index_id = i.index_id
+WHERE ips.object_id > 100;
+GO

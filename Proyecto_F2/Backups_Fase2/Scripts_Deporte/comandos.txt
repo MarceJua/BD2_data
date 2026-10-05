@@ -1,0 +1,35 @@
+REM --- 1. Carga Inicial y Full Backup ---
+sqlcmd -S localhost -E -C -i "C:\Backups_Fase2\Scripts_Deporte\01_Carga_Inicial_Deporte.sql"
+sqlcmd -S localhost -E -C -Q "BACKUP DATABASE OlimpiadasDB_Deporte TO DISK = 'C:\Backups_Fase2\Carga_Deporte\OlimpiadasDB_Deporte_Full.bak' WITH FORMAT, INIT, NAME = 'Full Backup Deporte', STATS = 10;"
+
+REM --- 2. Sub-carga 1 (Athletics 2016) y Diff 1 ---
+sqlcmd -S localhost -E -C -i "C:\Backups_Fase2\Scripts_Deporte\02_Carga_Deporte_2016.sql"
+sqlcmd -S localhost -E -C -Q "BACKUP DATABASE OlimpiadasDB_Deporte TO DISK = 'C:\Backups_Fase2\Carga_Deporte\OlimpiadasDB_Deporte_Diff_1_2016.bak' WITH DIFFERENTIAL, FORMAT, INIT, NAME = 'Diff 1 Deporte 2016', STATS = 10;"
+
+REM --- 3. Sub-carga 2 (Athletics 2020) y Diff 2 ---
+sqlcmd -S localhost -E -C -i "C:\Backups_Fase2\Scripts_Deporte\03_Carga_Deporte_2020.sql"
+sqlcmd -S localhost -E -C -Q "BACKUP DATABASE OlimpiadasDB_Deporte TO DISK = 'C:\Backups_Fase2\Carga_Deporte\OlimpiadasDB_Deporte_Diff_2_2020.bak' WITH DIFFERENTIAL, FORMAT, INIT, NAME = 'Diff 2 Deporte 2020', STATS = 10;"
+
+REM --- 4. Sub-carga 3 (Athletics 2024) y Diff 3 ---
+sqlcmd -S localhost -E -C -i "C:\Backups_Fase2\Scripts_Deporte\04_Carga_Deporte_2024.sql"
+sqlcmd -S localhost -E -C -Q "BACKUP DATABASE OlimpiadasDB_Deporte TO DISK = 'C:\Backups_Fase2\Carga_Deporte\OlimpiadasDB_Deporte_Diff_3_2024.bak' WITH DIFFERENTIAL, FORMAT, INIT, NAME = 'Diff 3 Deporte 2024', STATS = 10;"
+
+REM --- 5. Eliminar y Restaurar Full ---
+sqlcmd -S localhost -E -C -Q "ALTER DATABASE OlimpiadasDB_Deporte SET SINGLE_USER WITH ROLLBACK IMMEDIATE; DROP DATABASE OlimpiadasDB_Deporte;"
+sqlcmd -S localhost -E -C -Q "RESTORE DATABASE OlimpiadasDB_Deporte FROM DISK = 'C:\Backups_Fase2\Carga_Deporte\OlimpiadasDB_Deporte_Full.bak' WITH RECOVERY, STATS = 10;"
+sqlcmd -S localhost -E -C -i "C:\Backups_Fase2\Scripts_Deporte\05_Validar_Restauracion_Deporte.sql"
+
+REM --- 6. Eliminar y Restaurar Diff 1 ---
+sqlcmd -S localhost -E -C -Q "ALTER DATABASE OlimpiadasDB_Deporte SET SINGLE_USER WITH ROLLBACK IMMEDIATE; DROP DATABASE OlimpiadasDB_Deporte;"
+sqlcmd -S localhost -E -C -Q "RESTORE DATABASE OlimpiadasDB_Deporte FROM DISK = 'C:\Backups_Fase2\Carga_Deporte\OlimpiadasDB_Deporte_Full.bak' WITH NORECOVERY; RESTORE DATABASE OlimpiadasDB_Deporte FROM DISK = 'C:\Backups_Fase2\Carga_Deporte\OlimpiadasDB_Deporte_Diff_1_2016.bak' WITH RECOVERY, STATS = 10;"
+sqlcmd -S localhost -E -C -i "C:\Backups_Fase2\Scripts_Deporte\05_Validar_Restauracion_Deporte.sql"
+
+REM --- 7. Eliminar y Restaurar Diff 2 ---
+sqlcmd -S localhost -E -C -Q "ALTER DATABASE OlimpiadasDB_Deporte SET SINGLE_USER WITH ROLLBACK IMMEDIATE; DROP DATABASE OlimpiadasDB_Deporte;"
+sqlcmd -S localhost -E -C -Q "RESTORE DATABASE OlimpiadasDB_Deporte FROM DISK = 'C:\Backups_Fase2\Carga_Deporte\OlimpiadasDB_Deporte_Full.bak' WITH NORECOVERY; RESTORE DATABASE OlimpiadasDB_Deporte FROM DISK = 'C:\Backups_Fase2\Carga_Deporte\OlimpiadasDB_Deporte_Diff_2_2020.bak' WITH RECOVERY, STATS = 10;"
+sqlcmd -S localhost -E -C -i "C:\Backups_Fase2\Scripts_Deporte\05_Validar_Restauracion_Deporte.sql"
+
+REM --- 8. Eliminar y Restaurar Diff 3 ---
+sqlcmd -S localhost -E -C -Q "ALTER DATABASE OlimpiadasDB_Deporte SET SINGLE_USER WITH ROLLBACK IMMEDIATE; DROP DATABASE OlimpiadasDB_Deporte;"
+sqlcmd -S localhost -E -C -Q "RESTORE DATABASE OlimpiadasDB_Deporte FROM DISK = 'C:\Backups_Fase2\Carga_Deporte\OlimpiadasDB_Deporte_Full.bak' WITH NORECOVERY; RESTORE DATABASE OlimpiadasDB_Deporte FROM DISK = 'C:\Backups_Fase2\Carga_Deporte\OlimpiadasDB_Deporte_Diff_3_2024.bak' WITH RECOVERY, STATS = 10;"
+sqlcmd -S localhost -E -C -i "C:\Backups_Fase2\Scripts_Deporte\05_Validar_Restauracion_Deporte.sql"
