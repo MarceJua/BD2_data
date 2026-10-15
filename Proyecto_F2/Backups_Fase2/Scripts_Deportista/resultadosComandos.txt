@@ -1,0 +1,701 @@
+﻿==============================================================================
+RESULTADOS DE EJECUCIÓN - ESCENARIO 3: CARGA POR DEPORTISTA (USAIN BOLT)
+Proyecto 2 - Respaldo y Restauración de Bases de Datos
+Curso: Sistemas de Bases de Datos 2 - USAC - 2.º semestre 2026 - Grupo #16
+==============================================================================
+
+REM Base del escenario ........ OlimpiadasDB_Atleta (modelo de recuperación FULL)
+REM Base de partida ........... OlimpiadasDB (restaurada desde OlimpiadasDB_Fase2_Limpia.bak)
+REM Carpeta de respaldos ...... C:\Backups_Fase2\Carga_Deportista\
+REM Scripts ................... C:\Backups_Fase2\Scripts_Deportista\ (01 a 05) y comandos.txt
+REM Terminal .................. Símbolo del sistema (CMD), usuario C:\Users\xespi
+REM Fechas de ejecución ....... 10/10/2026 y 11/10/2026 (hora del reloj de Windows en cada captura)
+REM Secuencia ................. Carga inicial -> Full -> Sub-carga 2004 -> Dif 1 -> Sub-carga 2008 -> Dif 2
+REM                              -> Sub-carga 2012 -> Dif 3 -> 4 restauraciones con validación
+
+REM ==========================================================================
+REM 0. EQUIPO DE PRUEBAS
+REM ==========================================================================
+
+REM --------------------------------------------------------------------------
+REM 0.1 Procesador
+REM Intel Core i5-12450H, 8 núcleos y 12 procesadores lógicos.
+REM --------------------------------------------------------------------------
+C:\Users\xespi>powershell -NoProfile -Command "Get-CimInstance Win32_Processor | Select-Object Name,NumberOfCores,NumberOfLogicalProcessors | Format-List"
+Name                      : 12th Gen Intel(R) Core(TM) i5-12450H
+NumberOfCores             : 8
+NumberOfLogicalProcessors : 12
+
+REM --------------------------------------------------------------------------
+REM 0.2 Memoria RAM
+REM 15.7 GB.
+REM --------------------------------------------------------------------------
+C:\Users\xespi>powershell -NoProfile -Command "[math]::Round((Get-CimInstance Win32_ComputerSystem).TotalPhysicalMemory/1GB,1)"
+15.7
+
+REM --------------------------------------------------------------------------
+REM 0.3 Almacenamiento
+REM SSD Samsung de 512 GB.
+REM --------------------------------------------------------------------------
+C:\Users\xespi>powershell -NoProfile -Command "Get-PhysicalDisk | Select-Object FriendlyName,MediaType,Size | Format-List"
+FriendlyName : SAMSUNG MZVL2512HCJQ-00BH1
+MediaType    : SSD
+Size         : 512110190592
+
+REM --------------------------------------------------------------------------
+REM 0.4 Versión de SQL Server
+REM SQL Server 2025 (RTM) 17.0.1000.7, Standard Developer Edition, instancia por defecto (localhost).
+REM --------------------------------------------------------------------------
+C:\Users\xespi>sqlcmd -S localhost -E -C -Q "SELECT @@VERSION"
+------------------------------------------------------------------------------
+Microsoft SQL Server 2025 (RTM) - 17.0.1000.7 (X64)
+        Oct 21 2025 12:05:57
+        Copyright (C) 2025 Microsoft Corporation
+        Standard Developer Edition (64-bit) on Windows 10 Home Single Language 10.0 <X64> (Build 26200: ) (Hypervisor)
+
+
+(1 rows affected)
+
+REM ==========================================================================
+REM 1. PREPARACIÓN: BASE DE PARTIDA
+REM ==========================================================================
+
+REM --------------------------------------------------------------------------
+REM 1.1 Restauración de la base depurada OlimpiadasDB
+REM Se restaura la base de partida desde el respaldo entregado por el equipo.
+REM SINGLE_USER WITH ROLLBACK IMMEDIATE cierra las conexiones abiertas; WITH REPLACE sobrescribe la base existente.
+REM (Ejecutado desde PowerShell: PS C:\Windows\System32>)
+REM --------------------------------------------------------------------------
+PS C:\Windows\System32> sqlcmd -S localhost -E -C -Q "IF EXISTS (SELECT name FROM sys.databases WHERE name = N'OlimpiadasDB') BEGIN ALTER DATABASE OlimpiadasDB SET SINGLE_USER WITH ROLLBACK IMMEDIATE; END RESTORE DATABASE OlimpiadasDB FROM DISK = N'C:\Backups_Fase2\OlimpiadasDB_Fase2_Limpia.bak' WITH REPLACE; ALTER DATABASE OlimpiadasDB SET MULTI_USER;"
+Processed 32080 pages for database 'OlimpiadasDB', file 'OlimpiadasDB' on file 1.
+Processed 2 pages for database 'OlimpiadasDB', file 'OlimpiadasDB_log' on file 1.
+RESTORE DATABASE successfully processed 32082 pages in 0.769 seconds (325.925 MB/sec).
+
+REM --------------------------------------------------------------------------
+REM 1.2 Volumen de la base fuente
+REM Se anota el total de participaciones de la base fuente como referencia: 386,195.
+REM --------------------------------------------------------------------------
+C:\Users\xespi>sqlcmd -S localhost -E -C -d OlimpiadasDB -Q "SELECT COUNT(*) AS participaciones FROM PARTICIPACION"
+participaciones
+---------------
+         386195
+
+(1 rows affected)
+
+REM --------------------------------------------------------------------------
+REM 1.3 Participaciones de Usain Bolt por año en la base fuente
+REM Son las filas que la carga inicial deja fuera y que entran en las sub-cargas: 2 + 3 + 3 = 8.
+REM --------------------------------------------------------------------------
+C:\Users\xespi>sqlcmd -S localhost -E -C -d OlimpiadasDB -Q "SELECT EJ.anio, COUNT(*) AS filas_bolt FROM PARTICIPACION PAR INNER JOIN ATLETA A ON A.id_atleta = PAR.id_atleta INNER JOIN EDICION_JUEGOS EJ ON EJ.id_edicion = PAR.id_edicion WHERE A.nombre LIKE '%Usain%Bolt%' AND EJ.anio IN (2004,2008,2012) GROUP BY EJ.anio ORDER BY EJ.anio"
+anio        filas_bolt
+----------- -----------
+       2004           2
+       2008           3
+       2012           3
+
+(3 rows affected)
+
+REM ==========================================================================
+REM 2. CARGA INICIAL Y FULL BACKUP
+REM ==========================================================================
+
+REM --------------------------------------------------------------------------
+REM 2.1 Carga inicial (captura 1) - 10/10/2026, 10:30 p. m.
+REM Crea OlimpiadasDB_Atleta en modelo FULL, crea las 9 tablas y copia los datos desde OlimpiadasDB,
+REM excluyendo las participaciones de Usain Bolt en 2004, 2008 y 2012.
+REM Muestra: conteo de las 9 tablas, las últimas 5 participaciones y la fragmentación de los índices.
+REM Resultado: PARTICIPACION = 386,187 (8 menos que la fuente). Fragmentación de PARTICIPACION: 0.05 %.
+REM --------------------------------------------------------------------------
+C:\Users\xespi>sqlcmd -S localhost -E -C -i "C:\Backups_Fase2\Scripts_Deportista\01_Carga_Inicial_Deportista.sql"
+Changed database context to 'master'.
+Changed database context to 'OlimpiadasDB_Atleta'.
+
+(235 rows affected)
+
+(11520 rows affected)
+
+(42 rows affected)
+
+(54 rows affected)
+
+(147 rows affected)
+
+(2280 rows affected)
+
+(9 rows affected)
+
+(244745 rows affected)
+
+(386187 rows affected)
+Tabla                TotalRegistros
+-------------------- --------------
+PAIS                            235
+POBLACION_PAIS                11520
+SEDE                             42
+EDICION_JUEGOS                   54
+DEPORTE                         147
+EVENTO                         2280
+FUENTE_DATOS                      9
+ATLETA                       244745
+PARTICIPACION                386187
+
+(9 rows affected)
+id_participacion id_atleta   id_edicion  id_evento   id_pais_representado medalla
+---------------- ----------- ----------- ----------- -------------------- ----------
+          391685      244745          53        1931                  220 NULL
+          391684      244744          53        2070                  332 NULL
+          391683      244743          53        2046                  332 NULL
+          391682      244743          53        2041                  332 NULL
+          391681      244742          54        2023                  362 Gold
+
+(5 rows affected)
+NombreTabla            NombreIndice                     Frag_Pct                 Paginas
+---------------------- -------------------------------- ------------------------ --------------------
+PAIS                   PK__PAIS__0941A3A71B87D52D                            0.0                    1
+POBLACION_PAIS         PK__POBLACIO__C45E0A0D9606E225         2.3799999999999999                   42
+SEDE                   PK__SEDE__D693504B94B83600                            0.0                    1
+EDICION_JUEGOS         PK__EDICION___10318D2AA94891D6                        0.0                    1
+DEPORTE                PK__DEPORTE__05F136AF2C1FEEE2                         0.0                    1
+EVENTO                 PK__EVENTO__AF150CA533A62845           6.6699999999999999                   15
+FUENTE_DATOS           PK__FUENTE_D__D899AF3D87FCCDB0                        0.0                    1
+ATLETA                 PK__ATLETA__E9B2FCFA5E1941E8        5.0000000000000003E-2                 1950
+PARTICIPACION          PK__PARTICIP__E42D0FE02AE1B262                      5.0000000000000003E-2                 1832
+
+(9 rows affected)
+
+REM --------------------------------------------------------------------------
+REM 2.2 Full Backup (captura 2) - 10/10/2026, 10:34 p. m.
+REM Respaldo completo, base de toda la cadena de diferenciales. FORMAT, INIT sobrescriben el archivo; STATS = 10 muestra el avance.
+REM Resultado: 4,538 páginas (4,536 de datos + 2 de log) en 0.044 segundos (805.664 MB/sec).
+REM --------------------------------------------------------------------------
+C:\Users\xespi>sqlcmd -S localhost -E -C -Q "BACKUP DATABASE OlimpiadasDB_Atleta TO DISK = 'C:\Backups_Fase2\Carga_Deportista\OlimpiadasDB_Atleta_Full.bak' WITH FORMAT, INIT, NAME = 'Full Backup Atleta', STATS = 10;"
+11 percent processed.
+22 percent processed.
+31 percent processed.
+42 percent processed.
+50 percent processed.
+62 percent processed.
+70 percent processed.
+81 percent processed.
+90 percent processed.
+100 percent processed.
+Processed 4536 pages for database 'OlimpiadasDB_Atleta', file 'OlimpiadasDB_Atleta' on file 1.
+Processed 2 pages for database 'OlimpiadasDB_Atleta', file 'OlimpiadasDB_Atleta_log' on file 1.
+BACKUP DATABASE successfully processed 4538 pages in 0.044 seconds (805.664 MB/sec).
+
+REM --------------------------------------------------------------------------
+REM 2.3 Verificación del Full Backup
+REM dir muestra el archivo creado (38,920,192 bytes, 10/10/2026 10:32 p. m.).
+REM RESTORE VERIFYONLY comprueba que el respaldo se puede leer; no restaura nada ni afecta la cadena.
+REM --------------------------------------------------------------------------
+C:\Users\xespi>dir C:\Backups_Fase2\Carga_Deportista\
+ El volumen de la unidad C no tiene etiqueta.
+ El número de serie del volumen es: FAE6-9956
+
+ Directorio de C:\Backups_Fase2\Carga_Deportista
+
+10/10/2026  10:32 p. m.    <DIR>          .
+10/10/2026  09:58 p. m.    <DIR>          ..
+10/10/2026  10:32 p. m.        38,920,192 OlimpiadasDB_Atleta_Full.bak
+               1 archivos     38,920,192 bytes
+               2 dirs  50,387,783,680 bytes libres
+
+C:\Users\xespi>sqlcmd -S localhost -E -C -Q "RESTORE VERIFYONLY FROM DISK = 'C:\Backups_Fase2\Carga_Deportista\OlimpiadasDB_Atleta_Full.bak';"
+The backup set on file 1 is valid.
+
+REM ==========================================================================
+REM 3. SUB-CARGA 1 (USAIN BOLT 2004) Y DIFERENCIAL 1
+REM ==========================================================================
+
+REM --------------------------------------------------------------------------
+REM 3.1 Sub-carga 1: Bolt 2004 (captura 3) - 10/10/2026, 10:48 p. m.
+REM Inserta en PARTICIPACION las participaciones de Bolt de 2004 desde OlimpiadasDB y vuelve a mostrar conteos, filas de Bolt y fragmentación.
+REM Resultado: +2 filas, PARTICIPACION = 386,189. Fragmentación de PARTICIPACION: 0.16 % (1,833 páginas).
+REM --------------------------------------------------------------------------
+C:\Users\xespi>sqlcmd -S localhost -E -C -i "C:\Backups_Fase2\Scripts_Deportista\02_Carga_Bolt_2004.sql"
+Changed database context to 'OlimpiadasDB_Atleta'.
+
+(2 rows affected)
+Tabla                TotalRegistros
+-------------------- --------------
+PAIS                            235
+POBLACION_PAIS                11520
+SEDE                             42
+EDICION_JUEGOS                   54
+DEPORTE                         147
+EVENTO                         2280
+FUENTE_DATOS                      9
+ATLETA                       244745
+PARTICIPACION                386189
+
+(9 rows affected)
+id_participacion Atleta                    anio        Evento                              Medalla
+---------------- ------------------------- ----------- ----------------------------------- ----------
+          263819 Usain St. Leo Bolt               2016 Athletics Men's 200 metres          Gold
+          263822 Usain St. Leo Bolt               2004 Athletics Men's 200 metres          NULL
+          263852 Usain St. Leo Bolt               2016 Athletics Men's 4 x 100 metres Rela Gold
+          353930 Usain Bolt                       2016 4 × 100 metres Relay, Men (Olympic) Gold
+          353931 Usain Bolt                       2004 200 metres, Men (Olympic)           NULL
+
+(5 rows affected)
+NombreTabla            NombreIndice                     Frag_Pct                 Paginas
+---------------------- -------------------------------- ------------------------ --------------------
+PAIS                   PK__PAIS__0941A3A71B87D52D                            0.0                    1
+POBLACION_PAIS         PK__POBLACIO__C45E0A0D9606E225         2.3799999999999999                   42
+SEDE                   PK__SEDE__D693504B94B83600                            0.0                    1
+EDICION_JUEGOS         PK__EDICION___10318D2AA94891D6                        0.0                    1
+DEPORTE                PK__DEPORTE__05F136AF2C1FEEE2                         0.0                    1
+EVENTO                 PK__EVENTO__AF150CA533A62845           6.6699999999999999                   15
+FUENTE_DATOS           PK__FUENTE_D__D899AF3D87FCCDB0                        0.0                    1
+ATLETA                 PK__ATLETA__E9B2FCFA5E1941E8        5.0000000000000003E-2                 1950
+PARTICIPACION          PK__PARTICIP__E42D0FE02AE1B262                                      0.16                 1833
+
+(9 rows affected)
+
+REM --------------------------------------------------------------------------
+REM 3.2 Diferencial 1 (captura 4) - 10/10/2026, 10:54 p. m.
+REM WITH DIFFERENTIAL guarda solo lo modificado desde el Full.
+REM Resultado: 282 páginas (280 de datos + 2 de log) en 0.028 segundos (78.543 MB/sec).
+REM --------------------------------------------------------------------------
+C:\Users\xespi>sqlcmd -S localhost -E -C -Q "BACKUP DATABASE OlimpiadasDB_Atleta TO DISK = 'C:\Backups_Fase2\Carga_Deportista\OlimpiadasDB_Atleta_Diff_1_2004.bak' WITH DIFFERENTIAL, FORMAT, INIT, NAME = 'Diff 1 Bolt 2004', STATS = 10;"
+11 percent processed.
+29 percent processed.
+35 percent processed.
+44 percent processed.
+50 percent processed.
+61 percent processed.
+73 percent processed.
+94 percent processed.
+100 percent processed.
+Processed 280 pages for database 'OlimpiadasDB_Atleta', file 'OlimpiadasDB_Atleta' on file 1.
+Processed 2 pages for database 'OlimpiadasDB_Atleta', file 'OlimpiadasDB_Atleta_log' on file 1.
+BACKUP DATABASE WITH DIFFERENTIAL successfully processed 282 pages in 0.028 seconds (78.543 MB/sec).
+
+REM --------------------------------------------------------------------------
+REM 3.3 Verificación del Diferencial 1
+REM Archivo de 4,317,184 bytes creado el 10/10/2026 10:53 p. m.
+REM --------------------------------------------------------------------------
+C:\Users\xespi>dir C:\Backups_Fase2\Carga_Deportista\
+ El volumen de la unidad C no tiene etiqueta.
+ El número de serie del volumen es: FAE6-9956
+
+ Directorio de C:\Backups_Fase2\Carga_Deportista
+
+10/10/2026  10:53 p. m.    <DIR>          .
+10/10/2026  09:58 p. m.    <DIR>          ..
+10/10/2026  10:53 p. m.         4,317,184 OlimpiadasDB_Atleta_Diff_1_2004.bak
+10/10/2026  10:32 p. m.        38,920,192 OlimpiadasDB_Atleta_Full.bak
+               2 archivos     43,237,376 bytes
+               2 dirs  50,376,007,680 bytes libres
+
+C:\Users\xespi>sqlcmd -S localhost -E -C -Q "RESTORE VERIFYONLY FROM DISK = 'C:\Backups_Fase2\Carga_Deportista\OlimpiadasDB_Atleta_Diff_1_2004.bak';"
+The backup set on file 1 is valid.
+
+REM ==========================================================================
+REM 4. SUB-CARGA 2 (USAIN BOLT 2008) Y DIFERENCIAL 2
+REM ==========================================================================
+
+REM --------------------------------------------------------------------------
+REM 4.1 Sub-carga 2: Bolt 2008 (captura 5) - 11/10/2026, 12:27 p. m.
+REM Resultado: +3 filas, PARTICIPACION = 386,192. Fragmentación de PARTICIPACION: 0.38 % (1,835 páginas).
+REM --------------------------------------------------------------------------
+C:\Users\xespi>sqlcmd -S localhost -E -C -i "C:\Backups_Fase2\Scripts_Deportista\03_Carga_Bolt_2008.sql"
+Changed database context to 'OlimpiadasDB_Atleta'.
+
+(3 rows affected)
+Tabla                TotalRegistros
+-------------------- --------------
+PAIS                            235
+POBLACION_PAIS                11520
+SEDE                             42
+EDICION_JUEGOS                   54
+DEPORTE                         147
+EVENTO                         2280
+FUENTE_DATOS                      9
+ATLETA                       244745
+PARTICIPACION                386192
+
+(9 rows affected)
+id_participacion Atleta                    anio        Evento                              Medalla
+---------------- ------------------------- ----------- ----------------------------------- ----------
+          263822 Usain St. Leo Bolt               2004 Athletics Men's 200 metres          NULL
+          353931 Usain Bolt                       2004 200 metres, Men (Olympic)           NULL
+          263850 Usain St. Leo Bolt               2008 Athletics Men's 4 x 100 metres Rela NULL
+          353928 Usain Bolt                       2008 4 × 100 metres Relay, Men (Olympic) NULL
+          263951 Usain St. Leo Bolt               2008 Athletics Men's 100 metres          Gold
+          353930 Usain Bolt                       2016 4 × 100 metres Relay, Men (Olympic) Gold
+          263819 Usain St. Leo Bolt               2016 Athletics Men's 200 metres          Gold
+          263852 Usain St. Leo Bolt               2016 Athletics Men's 4 x 100 metres Rela Gold
+
+(8 rows affected)
+NombreTabla            NombreIndice                     Frag_Pct                 Paginas
+---------------------- -------------------------------- ------------------------ --------------------
+PAIS                   PK__PAIS__0941A3A71B87D52D                            0.0                    1
+POBLACION_PAIS         PK__POBLACIO__C45E0A0D9606E225         2.3799999999999999                   42
+SEDE                   PK__SEDE__D693504B94B83600                            0.0                    1
+EDICION_JUEGOS         PK__EDICION___10318D2AA94891D6                        0.0                    1
+DEPORTE                PK__DEPORTE__05F136AF2C1FEEE2                         0.0                    1
+EVENTO                 PK__EVENTO__AF150CA533A62845           6.6699999999999999                   15
+FUENTE_DATOS           PK__FUENTE_D__D899AF3D87FCCDB0                        0.0                    1
+ATLETA                 PK__ATLETA__E9B2FCFA5E1941E8        5.0000000000000003E-2                 1950
+PARTICIPACION          PK__PARTICIP__E42D0FE02AE1B262                                      0.38                 1835
+
+(9 rows affected)
+
+REM --------------------------------------------------------------------------
+REM 4.2 Diferencial 2 (captura 6) - 11/10/2026, 12:28 p. m.
+REM El diferencial es acumulativo: contiene lo de 2004 y lo de 2008, por eso sus páginas de datos (312) superan a las del Diferencial 1 (280).
+REM Resultado: 314 páginas (312 de datos + 2 de log) en 0.022 segundos (111.328 MB/sec).
+REM --------------------------------------------------------------------------
+C:\Users\xespi>sqlcmd -S localhost -E -C -Q "BACKUP DATABASE OlimpiadasDB_Atleta TO DISK = 'C:\Backups_Fase2\Carga_Deportista\OlimpiadasDB_Atleta_Diff_2_2008.bak' WITH DIFFERENTIAL, FORMAT, INIT, NAME = 'Diff 2 Bolt 2008', STATS = 10;"
+10 percent processed.
+26 percent processed.
+31 percent processed.
+44 percent processed.
+50 percent processed.
+60 percent processed.
+71 percent processed.
+97 percent processed.
+100 percent processed.
+Processed 312 pages for database 'OlimpiadasDB_Atleta', file 'OlimpiadasDB_Atleta' on file 1.
+Processed 2 pages for database 'OlimpiadasDB_Atleta', file 'OlimpiadasDB_Atleta_log' on file 1.
+BACKUP DATABASE WITH DIFFERENTIAL successfully processed 314 pages in 0.022 seconds (111.328 MB/sec).
+
+REM --------------------------------------------------------------------------
+REM 4.3 Verificación del Diferencial 2
+REM Archivo de 4,317,184 bytes creado el 11/10/2026 12:28 p. m.
+REM --------------------------------------------------------------------------
+C:\Users\xespi>dir C:\Backups_Fase2\Carga_Deportista\
+ El volumen de la unidad C no tiene etiqueta.
+ El número de serie del volumen es: FAE6-9956
+
+ Directorio de C:\Backups_Fase2\Carga_Deportista
+
+11/10/2026  12:28 p. m.    <DIR>          .
+10/10/2026  09:58 p. m.    <DIR>          ..
+10/10/2026  10:53 p. m.         4,317,184 OlimpiadasDB_Atleta_Diff_1_2004.bak
+11/10/2026  12:28 p. m.         4,317,184 OlimpiadasDB_Atleta_Diff_2_2008.bak
+10/10/2026  10:32 p. m.        38,920,192 OlimpiadasDB_Atleta_Full.bak
+               3 archivos     47,554,560 bytes
+               2 dirs  50,380,324,864 bytes libres
+
+C:\Users\xespi>sqlcmd -S localhost -E -C -Q "RESTORE VERIFYONLY FROM DISK = 'C:\Backups_Fase2\Carga_Deportista\OlimpiadasDB_Atleta_Diff_2_2008.bak';"
+The backup set on file 1 is valid.
+
+REM ==========================================================================
+REM 5. SUB-CARGA 3 (USAIN BOLT 2012) Y DIFERENCIAL 3
+REM ==========================================================================
+
+REM --------------------------------------------------------------------------
+REM 5.1 Sub-carga 3: Bolt 2012 (captura 7) - 11/10/2026, 08:17 p. m.
+REM Resultado: +3 filas, PARTICIPACION = 386,195, igual a la base fuente OlimpiadasDB. 11 participaciones de Bolt en total.
+REM Fragmentación de PARTICIPACION sin cambio: 0.38 % (1,835 páginas).
+REM --------------------------------------------------------------------------
+C:\Users\xespi>sqlcmd -S localhost -E -C -i "C:\Backups_Fase2\Scripts_Deportista\04_Carga_Bolt_2012.sql"
+Changed database context to 'OlimpiadasDB_Atleta'.
+
+(3 rows affected)
+Tabla                TotalRegistros
+-------------------- --------------
+PAIS                            235
+POBLACION_PAIS                11520
+SEDE                             42
+EDICION_JUEGOS                   54
+DEPORTE                         147
+EVENTO                         2280
+FUENTE_DATOS                      9
+ATLETA                       244745
+PARTICIPACION                386195
+
+(9 rows affected)
+id_participacion Atleta                    anio        Evento                              Medalla
+---------------- ------------------------- ----------- ----------------------------------- ----------
+          353931 Usain Bolt                       2004 200 metres, Men (Olympic)           NULL
+          263822 Usain St. Leo Bolt               2004 Athletics Men's 200 metres          NULL
+          353928 Usain Bolt                       2008 4 × 100 metres Relay, Men (Olympic) NULL
+          263850 Usain St. Leo Bolt               2008 Athletics Men's 4 x 100 metres Rela NULL
+          263951 Usain St. Leo Bolt               2008 Athletics Men's 100 metres          Gold
+          353929 Usain Bolt                       2012 4 × 100 metres Relay, Men (Olympic) Gold
+          263820 Usain St. Leo Bolt               2012 Athletics Men's 200 metres          Gold
+          263851 Usain St. Leo Bolt               2012 Athletics Men's 4 x 100 metres Rela Gold
+          353930 Usain Bolt                       2016 4 × 100 metres Relay, Men (Olympic) Gold
+          263852 Usain St. Leo Bolt               2016 Athletics Men's 4 x 100 metres Rela Gold
+          263819 Usain St. Leo Bolt               2016 Athletics Men's 200 metres          Gold
+
+(11 rows affected)
+NombreTabla            NombreIndice                     Frag_Pct                 Paginas
+---------------------- -------------------------------- ------------------------ --------------------
+PAIS                   PK__PAIS__0941A3A71B87D52D                            0.0                    1
+POBLACION_PAIS         PK__POBLACIO__C45E0A0D9606E225         2.3799999999999999                   42
+SEDE                   PK__SEDE__D693504B94B83600                            0.0                    1
+EDICION_JUEGOS         PK__EDICION___10318D2AA94891D6                        0.0                    1
+DEPORTE                PK__DEPORTE__05F136AF2C1FEEE2                         0.0                    1
+EVENTO                 PK__EVENTO__AF150CA533A62845           6.6699999999999999                   15
+FUENTE_DATOS           PK__FUENTE_D__D899AF3D87FCCDB0                        0.0                    1
+ATLETA                 PK__ATLETA__E9B2FCFA5E1941E8        5.0000000000000003E-2                 1950
+PARTICIPACION          PK__PARTICIP__E42D0FE02AE1B262                                      0.38                 1835
+
+(9 rows affected)
+
+REM --------------------------------------------------------------------------
+REM 5.2 Diferencial 3 (captura 8) - 11/10/2026, 08:19 p. m.
+REM Acumula 2004, 2008 y 2012: 384 páginas de datos, más que las 312 del Diferencial 2.
+REM Resultado: 386 páginas (384 de datos + 2 de log) en 0.029 segundos (103.852 MB/sec).
+REM --------------------------------------------------------------------------
+C:\Users\xespi>sqlcmd -S localhost -E -C -Q "BACKUP DATABASE OlimpiadasDB_Atleta TO DISK = 'C:\Backups_Fase2\Carga_Deportista\OlimpiadasDB_Atleta_Diff_3_2012.bak' WITH DIFFERENTIAL, FORMAT, INIT, NAME = 'Diff 3 Bolt 2012', STATS = 10;"
+12 percent processed.
+27 percent processed.
+31 percent processed.
+40 percent processed.
+51 percent processed.
+61 percent processed.
+72 percent processed.
+98 percent processed.
+100 percent processed.
+Processed 384 pages for database 'OlimpiadasDB_Atleta', file 'OlimpiadasDB_Atleta' on file 1.
+Processed 2 pages for database 'OlimpiadasDB_Atleta', file 'OlimpiadasDB_Atleta_log' on file 1.
+BACKUP DATABASE WITH DIFFERENTIAL successfully processed 386 pages in 0.029 seconds (103.852 MB/sec).
+
+REM --------------------------------------------------------------------------
+REM 5.3 Verificación del Diferencial 3 y de los cuatro archivos
+REM Los tres diferenciales pesan lo mismo (4,317,184 bytes) aunque sus páginas crecen de 282 a 386.
+REM --------------------------------------------------------------------------
+C:\Users\xespi>dir C:\Backups_Fase2\Carga_Deportista\
+ El volumen de la unidad C no tiene etiqueta.
+ El número de serie del volumen es: FAE6-9956
+
+ Directorio de C:\Backups_Fase2\Carga_Deportista
+
+11/10/2026  08:18 p. m.    <DIR>          .
+10/10/2026  09:58 p. m.    <DIR>          ..
+10/10/2026  10:53 p. m.         4,317,184 OlimpiadasDB_Atleta_Diff_1_2004.bak
+11/10/2026  12:28 p. m.         4,317,184 OlimpiadasDB_Atleta_Diff_2_2008.bak
+11/10/2026  08:18 p. m.         4,317,184 OlimpiadasDB_Atleta_Diff_3_2012.bak
+10/10/2026  10:32 p. m.        38,920,192 OlimpiadasDB_Atleta_Full.bak
+               4 archivos     51,871,744 bytes
+               2 dirs  51,379,429,376 bytes libres
+
+C:\Users\xespi>sqlcmd -S localhost -E -C -Q "RESTORE VERIFYONLY FROM DISK = 'C:\Backups_Fase2\Carga_Deportista\OlimpiadasDB_Atleta_Diff_3_2012.bak';"
+The backup set on file 1 is valid.
+
+REM ==========================================================================
+REM 6. ELIMINACIÓN, RESTAURACIÓN Y VALIDACIÓN (4 CICLOS) - 11/10/2026
+REM ==========================================================================
+REM Cada ciclo: (a) DROP DATABASE, (b) RESTORE, (c) script de validación 05_Validar_Restauracion_Deportista.sql.
+REM Full + Diferencial: el Full se restaura WITH NORECOVERY (queda en espera) y el diferencial WITH RECOVERY (deja la base disponible).
+REM Al ser acumulativos, solo se necesita el Full y UN diferencial; el tiempo total es la suma de las dos operaciones RESTORE.
+
+REM --------------------------------------------------------------------------
+REM 6.1 Ciclo 1: solo Full Backup (captura 9) - 11/10/2026, 08:32 p. m.
+REM Devuelve la base al estado de la carga inicial.
+REM Resultado: 4,538 páginas en 0.063 segundos. PARTICIPACION = 386,187 y solo 3 filas de Bolt (todas de 2016).
+REM --------------------------------------------------------------------------
+C:\Users\xespi>sqlcmd -S localhost -E -C -Q "ALTER DATABASE OlimpiadasDB_Atleta SET SINGLE_USER WITH ROLLBACK IMMEDIATE; DROP DATABASE OlimpiadasDB_Atleta;"
+
+C:\Users\xespi>sqlcmd -S localhost -E -C -Q "RESTORE DATABASE OlimpiadasDB_Atleta FROM DISK = 'C:\Backups_Fase2\Carga_Deportista\OlimpiadasDB_Atleta_Full.bak' WITH RECOVERY, STATS = 10;"
+11 percent processed.
+22 percent processed.
+31 percent processed.
+42 percent processed.
+50 percent processed.
+62 percent processed.
+70 percent processed.
+81 percent processed.
+90 percent processed.
+100 percent processed.
+Processed 4536 pages for database 'OlimpiadasDB_Atleta', file 'OlimpiadasDB_Atleta' on file 1.
+Processed 2 pages for database 'OlimpiadasDB_Atleta', file 'OlimpiadasDB_Atleta_log' on file 1.
+RESTORE DATABASE successfully processed 4538 pages in 0.063 seconds (562.686 MB/sec).
+
+C:\Users\xespi>sqlcmd -S localhost -E -C -i "C:\Backups_Fase2\Scripts_Deportista\05_Validar_Restauracion_Deportista.sql"
+Changed database context to 'OlimpiadasDB_Atleta'.
+Tabla                TotalRegistros
+-------------------- --------------
+PAIS                            235
+POBLACION_PAIS                11520
+SEDE                             42
+EDICION_JUEGOS                   54
+DEPORTE                         147
+EVENTO                         2280
+FUENTE_DATOS                      9
+ATLETA                       244745
+PARTICIPACION                386187
+
+(9 rows affected)
+id_participacion Atleta                    anio        Evento                              Medalla
+---------------- ------------------------- ----------- ----------------------------------- ----------
+          353930 Usain Bolt                       2016 4 × 100 metres Relay, Men (Olympic) Gold
+          263819 Usain St. Leo Bolt               2016 Athletics Men's 200 metres          Gold
+          263852 Usain St. Leo Bolt               2016 Athletics Men's 4 x 100 metres Rela Gold
+
+(3 rows affected)
+
+REM --------------------------------------------------------------------------
+REM 6.2 Ciclo 2: Full + Diferencial 1 (captura 10) - 11/10/2026, 08:34 p. m.
+REM Tiempo total: 0.067 s (Full) + 0.041 s (Diferencial 1) = 0.108 s.
+REM Resultado: PARTICIPACION = 386,189 y 5 filas de Bolt (aparecen las 2 de 2004).
+REM --------------------------------------------------------------------------
+C:\Users\xespi>sqlcmd -S localhost -E -C -Q "ALTER DATABASE OlimpiadasDB_Atleta SET SINGLE_USER WITH ROLLBACK IMMEDIATE; DROP DATABASE OlimpiadasDB_Atleta;"
+
+C:\Users\xespi>sqlcmd -S localhost -E -C -Q "RESTORE DATABASE OlimpiadasDB_Atleta FROM DISK = 'C:\Backups_Fase2\Carga_Deportista\OlimpiadasDB_Atleta_Full.bak' WITH NORECOVERY; RESTORE DATABASE OlimpiadasDB_Atleta FROM DISK = 'C:\Backups_Fase2\Carga_Deportista\OlimpiadasDB_Atleta_Diff_1_2004.bak' WITH RECOVERY, STATS = 10;"
+Processed 4536 pages for database 'OlimpiadasDB_Atleta', file 'OlimpiadasDB_Atleta' on file 1.
+Processed 2 pages for database 'OlimpiadasDB_Atleta', file 'OlimpiadasDB_Atleta_log' on file 1.
+RESTORE DATABASE successfully processed 4538 pages in 0.067 seconds (529.092 MB/sec).
+47 percent processed.
+94 percent processed.
+100 percent processed.
+Processed 280 pages for database 'OlimpiadasDB_Atleta', file 'OlimpiadasDB_Atleta' on file 1.
+Processed 2 pages for database 'OlimpiadasDB_Atleta', file 'OlimpiadasDB_Atleta_log' on file 1.
+RESTORE DATABASE successfully processed 282 pages in 0.041 seconds (53.639 MB/sec).
+
+C:\Users\xespi>sqlcmd -S localhost -E -C -i "C:\Backups_Fase2\Scripts_Deportista\05_Validar_Restauracion_Deportista.sql"
+Changed database context to 'OlimpiadasDB_Atleta'.
+Tabla                TotalRegistros
+-------------------- --------------
+PAIS                            235
+POBLACION_PAIS                11520
+SEDE                             42
+EDICION_JUEGOS                   54
+DEPORTE                         147
+EVENTO                         2280
+FUENTE_DATOS                      9
+ATLETA                       244745
+PARTICIPACION                386189
+
+(9 rows affected)
+id_participacion Atleta                    anio        Evento                              Medalla
+---------------- ------------------------- ----------- ----------------------------------- ----------
+          353931 Usain Bolt                       2004 200 metres, Men (Olympic)           NULL
+          263822 Usain St. Leo Bolt               2004 Athletics Men's 200 metres          NULL
+          353930 Usain Bolt                       2016 4 × 100 metres Relay, Men (Olympic) Gold
+          263852 Usain St. Leo Bolt               2016 Athletics Men's 4 x 100 metres Rela Gold
+          263819 Usain St. Leo Bolt               2016 Athletics Men's 200 metres          Gold
+
+(5 rows affected)
+
+REM --------------------------------------------------------------------------
+REM 6.3 Ciclo 3: Full + Diferencial 2 (captura 11) - 11/10/2026, 08:35 p. m.
+REM Tiempo total: 0.062 s (Full) + 0.044 s (Diferencial 2) = 0.106 s.
+REM Resultado: PARTICIPACION = 386,192 y 8 filas de Bolt (se suman las 3 de 2008).
+REM --------------------------------------------------------------------------
+C:\Users\xespi>sqlcmd -S localhost -E -C -Q "ALTER DATABASE OlimpiadasDB_Atleta SET SINGLE_USER WITH ROLLBACK IMMEDIATE; DROP DATABASE OlimpiadasDB_Atleta;"
+
+C:\Users\xespi>sqlcmd -S localhost -E -C -Q "RESTORE DATABASE OlimpiadasDB_Atleta FROM DISK = 'C:\Backups_Fase2\Carga_Deportista\OlimpiadasDB_Atleta_Full.bak' WITH NORECOVERY; RESTORE DATABASE OlimpiadasDB_Atleta FROM DISK = 'C:\Backups_Fase2\Carga_Deportista\OlimpiadasDB_Atleta_Diff_2_2008.bak' WITH RECOVERY, STATS = 10;"
+Processed 4536 pages for database 'OlimpiadasDB_Atleta', file 'OlimpiadasDB_Atleta' on file 1.
+Processed 2 pages for database 'OlimpiadasDB_Atleta', file 'OlimpiadasDB_Atleta_log' on file 1.
+RESTORE DATABASE successfully processed 4538 pages in 0.062 seconds (571.761 MB/sec).
+42 percent processed.
+84 percent processed.
+100 percent processed.
+Processed 312 pages for database 'OlimpiadasDB_Atleta', file 'OlimpiadasDB_Atleta' on file 1.
+Processed 2 pages for database 'OlimpiadasDB_Atleta', file 'OlimpiadasDB_Atleta_log' on file 1.
+RESTORE DATABASE successfully processed 314 pages in 0.044 seconds (55.664 MB/sec).
+
+C:\Users\xespi>sqlcmd -S localhost -E -C -i "C:\Backups_Fase2\Scripts_Deportista\05_Validar_Restauracion_Deportista.sql"
+Changed database context to 'OlimpiadasDB_Atleta'.
+Tabla                TotalRegistros
+-------------------- --------------
+PAIS                            235
+POBLACION_PAIS                11520
+SEDE                             42
+EDICION_JUEGOS                   54
+DEPORTE                         147
+EVENTO                         2280
+FUENTE_DATOS                      9
+ATLETA                       244745
+PARTICIPACION                386192
+
+(9 rows affected)
+id_participacion Atleta                    anio        Evento                              Medalla
+---------------- ------------------------- ----------- ----------------------------------- ----------
+          353931 Usain Bolt                       2004 200 metres, Men (Olympic)           NULL
+          263822 Usain St. Leo Bolt               2004 Athletics Men's 200 metres          NULL
+          353928 Usain Bolt                       2008 4 × 100 metres Relay, Men (Olympic) NULL
+          263850 Usain St. Leo Bolt               2008 Athletics Men's 4 x 100 metres Rela NULL
+          263951 Usain St. Leo Bolt               2008 Athletics Men's 100 metres          Gold
+          353930 Usain Bolt                       2016 4 × 100 metres Relay, Men (Olympic) Gold
+          263819 Usain St. Leo Bolt               2016 Athletics Men's 200 metres          Gold
+          263852 Usain St. Leo Bolt               2016 Athletics Men's 4 x 100 metres Rela Gold
+
+(8 rows affected)
+
+REM --------------------------------------------------------------------------
+REM 6.4 Ciclo 4: Full + Diferencial 3 (captura 12) - 11/10/2026, 08:36 p. m.
+REM Tiempo total: 0.062 s (Full) + 0.041 s (Diferencial 3) = 0.103 s.
+REM Resultado: PARTICIPACION = 386,195 (100 % de la base fuente) y las 11 filas de Bolt, idénticas a la salida del script 04.
+REM La base OlimpiadasDB_Atleta queda restaurada en su estado final.
+REM --------------------------------------------------------------------------
+C:\Users\xespi>sqlcmd -S localhost -E -C -Q "ALTER DATABASE OlimpiadasDB_Atleta SET SINGLE_USER WITH ROLLBACK IMMEDIATE; DROP DATABASE OlimpiadasDB_Atleta;"
+
+C:\Users\xespi>sqlcmd -S localhost -E -C -Q "RESTORE DATABASE OlimpiadasDB_Atleta FROM DISK = 'C:\Backups_Fase2\Carga_Deportista\OlimpiadasDB_Atleta_Full.bak' WITH NORECOVERY; RESTORE DATABASE OlimpiadasDB_Atleta FROM DISK = 'C:\Backups_Fase2\Carga_Deportista\OlimpiadasDB_Atleta_Diff_3_2012.bak' WITH RECOVERY, STATS = 10;"
+Processed 4536 pages for database 'OlimpiadasDB_Atleta', file 'OlimpiadasDB_Atleta' on file 1.
+Processed 2 pages for database 'OlimpiadasDB_Atleta', file 'OlimpiadasDB_Atleta_log' on file 1.
+RESTORE DATABASE successfully processed 4538 pages in 0.062 seconds (571.761 MB/sec).
+34 percent processed.
+68 percent processed.
+100 percent processed.
+Processed 384 pages for database 'OlimpiadasDB_Atleta', file 'OlimpiadasDB_Atleta' on file 1.
+Processed 2 pages for database 'OlimpiadasDB_Atleta', file 'OlimpiadasDB_Atleta_log' on file 1.
+RESTORE DATABASE successfully processed 386 pages in 0.041 seconds (73.456 MB/sec).
+
+C:\Users\xespi>sqlcmd -S localhost -E -C -i "C:\Backups_Fase2\Scripts_Deportista\05_Validar_Restauracion_Deportista.sql"
+Changed database context to 'OlimpiadasDB_Atleta'.
+Tabla                TotalRegistros
+-------------------- --------------
+PAIS                            235
+POBLACION_PAIS                11520
+SEDE                             42
+EDICION_JUEGOS                   54
+DEPORTE                         147
+EVENTO                         2280
+FUENTE_DATOS                      9
+ATLETA                       244745
+PARTICIPACION                386195
+
+(9 rows affected)
+id_participacion Atleta                    anio        Evento                              Medalla
+---------------- ------------------------- ----------- ----------------------------------- ----------
+          353931 Usain Bolt                       2004 200 metres, Men (Olympic)           NULL
+          263822 Usain St. Leo Bolt               2004 Athletics Men's 200 metres          NULL
+          353928 Usain Bolt                       2008 4 × 100 metres Relay, Men (Olympic) NULL
+          263850 Usain St. Leo Bolt               2008 Athletics Men's 4 x 100 metres Rela NULL
+          263951 Usain St. Leo Bolt               2008 Athletics Men's 100 metres          Gold
+          353929 Usain Bolt                       2012 4 × 100 metres Relay, Men (Olympic) Gold
+          263820 Usain St. Leo Bolt               2012 Athletics Men's 200 metres          Gold
+          263851 Usain St. Leo Bolt               2012 Athletics Men's 4 x 100 metres Rela Gold
+          353930 Usain Bolt                       2016 4 × 100 metres Relay, Men (Olympic) Gold
+          263852 Usain St. Leo Bolt               2016 Athletics Men's 4 x 100 metres Rela Gold
+          263819 Usain St. Leo Bolt               2016 Athletics Men's 200 metres          Gold
+
+(11 rows affected)
+
+REM ==========================================================================
+REM 7. RESUMEN DE RESULTADOS DEL ESCENARIO 3
+REM ==========================================================================
+REM
+REM RESPALDOS
+REM Respaldo          Páginas   Tiempo (s)  Velocidad (MB/s)  Archivo (bytes)  Fecha y hora del archivo
+REM Full               4,538     0.044       805.664           38,920,192       10/10/2026 10:32 p. m.
+REM Diferencial 1        282     0.028        78.543            4,317,184       10/10/2026 10:53 p. m.
+REM Diferencial 2        314     0.022       111.328            4,317,184       11/10/2026 12:28 p. m.
+REM Diferencial 3        386     0.029       103.852            4,317,184       11/10/2026 08:18 p. m.
+REM
+REM RESTAURACIONES
+REM Ciclo  Respaldos usados   Full (s)  Diferencial (s)  Total (s)  PARTICIPACION  Filas de Bolt
+REM 1      Full               0.063     -                0.063      386,187         3
+REM 2      Full + Dif. 1      0.067     0.041            0.108      386,189         5
+REM 3      Full + Dif. 2      0.062     0.044            0.106      386,192         8
+REM 4      Full + Dif. 3      0.062     0.041            0.103      386,195        11
+REM
+REM EVOLUCIÓN DE LA CARGA
+REM Etapa                 PARTICIPACION  Fragmentación del índice de PARTICIPACION
+REM Carga inicial         386,187        0.05 % (1,832 páginas)
+REM Sub-carga 1 (2004)    386,189        0.16 % (1,833 páginas)
+REM Sub-carga 2 (2008)    386,192        0.38 % (1,835 páginas)
+REM Sub-carga 3 (2012)    386,195        0.38 % (1,835 páginas)
+REM
+REM Observaciones:
+REM - Cada tiempo corresponde a una sola medición; al ser de milésimas de segundo, las diferencias pequeñas no son concluyentes.
+REM - Restaurar Full + Diferencial toma de 1.6 a 1.7 veces lo que toma restaurar solo el Full (0.063 s).
+REM - Bolt aparece como dos registros de atleta ("Usain St. Leo Bolt" y "Usain Bolt"), por eso algunas pruebas salen dos veces;
+REM   es una particularidad de los datos del Proyecto 1 y no afecta el procedimiento de respaldo ni de restauración.

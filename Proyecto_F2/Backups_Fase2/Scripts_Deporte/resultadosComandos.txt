@@ -1,0 +1,454 @@
+--- REM 1
+PS C:\Backups_Fase2> sqlcmd -S "CARLOSDLB\SQLEXPRESS" -E -C -i "C:\Backups_Fase2\Scripts_Deporte\01_Carga_Inicial_Deporte.sql"
+Changed database context to 'master'.
+Changed database context to 'OlimpiadasDB_Deporte'.
+
+(235 rows affected)
+
+(11520 rows affected)
+
+(42 rows affected)
+
+(54 rows affected)
+
+(147 rows affected)
+
+(2280 rows affected)
+
+(9 rows affected)
+
+(244745 rows affected)
+
+(377552 rows affected)
+Tabla                TotalRegistros
+-------------------- --------------
+PAIS                            235
+POBLACION_PAIS                11520
+SEDE                             42
+EDICION_JUEGOS                   54
+DEPORTE                         147
+EVENTO                         2280
+FUENTE_DATOS                      9
+ATLETA                       244745
+PARTICIPACION                377552
+
+(9 rows affected)
+id_participacion id_atleta   id_edicion  id_evento   id_pais_representado medalla
+---------------- ----------- ----------- ----------- -------------------- ----------
+          391685      244745          53        1931                  220 NULL
+          391684      244744          53        2070                  332 NULL
+          391683      244743          53        2046                  332 NULL
+          391682      244743          53        2041                  332 NULL
+          391681      244742          54        2023                  362 Gold
+
+(5 rows affected)
+NombreTabla            NombreIndice                     Frag_Pct                 Paginas
+---------------------- -------------------------------- ------------------------ --------------------
+PAIS                   PK__PAIS__0941A3A7E78D5F55                            0.0                    1
+POBLACION_PAIS         PK__POBLACIO__C45E0A0DB0A4D511         2.3799999999999999                   42
+SEDE                   PK__SEDE__D693504B93E3F94E                            0.0                    1
+EDICION_JUEGOS         PK__EDICION___10318D2AA63FE7D5                        0.0                    1
+DEPORTE                PK__DEPORTE__05F136AF6580CF46                         0.0                    1
+EVENTO                 PK__EVENTO__AF150CA5D3EFF98F           6.6699999999999999                   15
+FUENTE_DATOS           PK__FUENTE_D__D899AF3D9E263D97                        0.0                    1
+ATLETA                 PK__ATLETA__E9B2FCFAB5F06632        5.0000000000000003E-2                 1950
+PARTICIPACION          PK__PARTICIP__E42D0FE0450EC937      5.9999999999999998E-2                 1792
+
+(9 rows affected)
+PS C:\Backups_Fase2> sqlcmd -S "CARLOSDLB\SQLEXPRESS" -E -C -Q "BACKUP DATABASE OlimpiadasDB_Deporte TO DISK = 'C:\Backups_Fase2\Carga_Deporte\OlimpiadasDB_Deporte_Full.bak' WITH FORMAT, INIT, NAME = 'Full Backup Deporte', STATS = 10;"
+10 percent processed.
+20 percent processed.
+30 percent processed.
+40 percent processed.
+50 percent processed.
+60 percent processed.
+70 percent processed.
+80 percent processed.
+90 percent processed.
+100 percent processed.
+Processed 4480 pages for database 'OlimpiadasDB_Deporte', file 'OlimpiadasDB_Deporte' on file 1.
+Processed 1 pages for database 'OlimpiadasDB_Deporte', file 'OlimpiadasDB_Deporte_log' on file 1.
+BACKUP DATABASE successfully processed 4481 pages in 0.069 seconds (507.267 MB/sec).
+PS C:\Backups_Fase2>
+
+¿Me puedes indicar si todo esta bien, para seguir continuando?
+
+--- REM 2
+PS C:\Backups_Fase2> sqlcmd -S "CARLOSDLB\SQLEXPRESS" -E -C -i "C:\Backups_Fase2\Scripts_Deporte\02_Carga_Deporte_2016.sql"
+Changed database context to 'OlimpiadasDB_Deporte'.
+
+(3973 rows affected)
+Tabla                TotalRegistros
+-------------------- --------------
+PAIS                            235
+POBLACION_PAIS                11520
+SEDE                             42
+EDICION_JUEGOS                   54
+DEPORTE                         147
+EVENTO                         2280
+FUENTE_DATOS                      9
+ATLETA                       244745
+PARTICIPACION                381525
+
+(9 rows affected)
+id_participacion id_atleta   anio        Evento                              medalla
+---------------- ----------- ----------- ----------------------------------- ----------
+              37       79452        2016 Athletics Women's 100 metres        NULL
+              42      129637        2016 Athletics Women's 100 metres        NULL
+              43      200885        2016 Athletics Women's 100 metres        NULL
+              60      198806        2016 Athletics Women's 100 metres Hurdle NULL
+              61      126312        2016 Athletics Women's 100 metres Hurdle NULL
+
+(5 rows affected)
+NombreTabla            NombreIndice                     Frag_Pct                 Paginas
+---------------------- -------------------------------- ------------------------ --------------------
+PAIS                   PK__PAIS__0941A3A7E78D5F55                            0.0                    1
+POBLACION_PAIS         PK__POBLACIO__C45E0A0DB0A4D511         2.3799999999999999                   42
+SEDE                   PK__SEDE__D693504B93E3F94E                            0.0                    1
+EDICION_JUEGOS         PK__EDICION___10318D2AA63FE7D5                        0.0                    1
+DEPORTE                PK__DEPORTE__05F136AF6580CF46                         0.0                    1
+EVENTO                 PK__EVENTO__AF150CA5D3EFF98F           6.6699999999999999                   15
+FUENTE_DATOS           PK__FUENTE_D__D899AF3D9E263D97                        0.0                    1
+ATLETA                 PK__ATLETA__E9B2FCFAB5F06632        5.0000000000000003E-2                 1950
+PARTICIPACION          PK__PARTICIP__E42D0FE0450EC937         43.189999999999998                 2292
+
+(9 rows affected)
+PS C:\Backups_Fase2> sqlcmd -S "CARLOSDLB\SQLEXPRESS" -E -C -Q "BACKUP DATABASE OlimpiadasDB_Deporte TO DISK = 'C:\Backups_Fase2\Carga_Deporte\OlimpiadasDB_Deporte_Diff_1_2016.bak' WITH DIFFERENTIAL, FORMAT, INIT, NAME = 'Diff 1 Deporte 2016', STATS = 10;"
+10 percent processed.
+20 percent processed.
+30 percent processed.
+40 percent processed.
+50 percent processed.
+60 percent processed.
+70 percent processed.
+80 percent processed.
+90 percent processed.
+100 percent processed.
+Processed 1960 pages for database 'OlimpiadasDB_Deporte', file 'OlimpiadasDB_Deporte' on file 1.
+Processed 1 pages for database 'OlimpiadasDB_Deporte', file 'OlimpiadasDB_Deporte_log' on file 1.
+BACKUP DATABASE WITH DIFFERENTIAL successfully processed 1961 pages in 0.451 seconds (33.955 MB/sec).
+PS C:\Backups_Fase2>
+
+--- REM 3
+PS C:\Backups_Fase2> sqlcmd -S "CARLOSDLB\SQLEXPRESS" -E -C -i "C:\Backups_Fase2\Scripts_Deporte\03_Carga_Deporte_2020.sql"
+Changed database context to 'OlimpiadasDB_Deporte'.
+
+(2318 rows affected)
+Tabla                TotalRegistros
+-------------------- --------------
+PAIS                            235
+POBLACION_PAIS                11520
+SEDE                             42
+EDICION_JUEGOS                   54
+DEPORTE                         147
+EVENTO                         2280
+FUENTE_DATOS                      9
+ATLETA                       244745
+PARTICIPACION                383843
+
+(9 rows affected)
+id_participacion id_atleta   anio        Evento                              medalla
+---------------- ----------- ----------- ----------------------------------- ----------
+          361826       59730        2020 Men's 4 x 100m Relay Team           NULL
+          361863       64617        2020 Men's 100m                          NULL
+          361864       64617        2020 Men's 4 x 100m Relay Team           NULL
+          361868       64628        2020 Men's 100m                          NULL
+          361869       64628        2020 Men's 4 x 100m Relay Team           Bronze
+
+(5 rows affected)
+NombreTabla            NombreIndice                     Frag_Pct                 Paginas
+---------------------- -------------------------------- ------------------------ --------------------
+PAIS                   PK__PAIS__0941A3A7E78D5F55                            0.0                    1
+POBLACION_PAIS         PK__POBLACIO__C45E0A0DB0A4D511         2.3799999999999999                   42
+SEDE                   PK__SEDE__D693504B93E3F94E                            0.0                    1
+EDICION_JUEGOS         PK__EDICION___10318D2AA63FE7D5                        0.0                    1
+DEPORTE                PK__DEPORTE__05F136AF6580CF46                         0.0                    1
+EVENTO                 PK__EVENTO__AF150CA5D3EFF98F           6.6699999999999999                   15
+FUENTE_DATOS           PK__FUENTE_D__D899AF3D9E263D97                        0.0                    1
+ATLETA                 PK__ATLETA__E9B2FCFAB5F06632        5.0000000000000003E-2                 1950
+PARTICIPACION          PK__PARTICIP__E42D0FE0450EC937         50.600000000000001                 2413
+
+(9 rows affected)
+PS C:\Backups_Fase2> sqlcmd -S "CARLOSDLB\SQLEXPRESS" -E -C -Q "BACKUP DATABASE OlimpiadasDB_Deporte TO DISK = 'C:\Backups_Fase2\Carga_Deporte\OlimpiadasDB_Deporte_Diff_2_2020.bak' WITH DIFFERENTIAL, FORMAT, INIT, NAME = 'Diff 2 Deporte 2020', STATS = 10;"
+10 percent processed.
+20 percent processed.
+30 percent processed.
+40 percent processed.
+50 percent processed.
+60 percent processed.
+70 percent processed.
+80 percent processed.
+90 percent processed.
+100 percent processed.
+Processed 2216 pages for database 'OlimpiadasDB_Deporte', file 'OlimpiadasDB_Deporte' on file 1.
+Processed 1 pages for database 'OlimpiadasDB_Deporte', file 'OlimpiadasDB_Deporte_log' on file 1.
+BACKUP DATABASE WITH DIFFERENTIAL successfully processed 2217 pages in 0.203 seconds (85.290 MB/sec).
+PS C:\Backups_Fase2>
+
+--- REM4
+PS C:\Backups_Fase2> sqlcmd -S "CARLOSDLB\SQLEXPRESS" -E -C -i "C:\Backups_Fase2\Scripts_Deporte\04_Carga_Deporte_2024.sql"
+Changed database context to 'OlimpiadasDB_Deporte'.
+
+(2352 rows affected)
+Tabla                TotalRegistros
+-------------------- --------------
+PAIS                            235
+POBLACION_PAIS                11520
+SEDE                             42
+EDICION_JUEGOS                   54
+DEPORTE                         147
+EVENTO                         2280
+FUENTE_DATOS                      9
+ATLETA                       244745
+PARTICIPACION                386195
+
+(9 rows affected)
+id_participacion id_atleta   anio        Evento                              medalla
+---------------- ----------- ----------- ----------------------------------- ----------
+          361782       41957        2024 Men's 100m                          NULL
+          361946       70695        2024 Women's 100m                        NULL
+          361948       70695        2024 Women's 4 x 100m Relay              NULL
+          362010       71625        2024 Men's 4 x 100m Relay                Gold
+          362011       71625        2024 Men's 100m                          NULL
+
+(5 rows affected)
+NombreTabla            NombreIndice                     Frag_Pct                 Paginas
+---------------------- -------------------------------- ------------------------ --------------------
+PAIS                   PK__PAIS__0941A3A7E78D5F55                            0.0                    1
+POBLACION_PAIS         PK__POBLACIO__C45E0A0DB0A4D511         2.3799999999999999                   42
+SEDE                   PK__SEDE__D693504B93E3F94E                            0.0                    1
+EDICION_JUEGOS         PK__EDICION___10318D2AA63FE7D5                        0.0                    1
+DEPORTE                PK__DEPORTE__05F136AF6580CF46                         0.0                    1
+EVENTO                 PK__EVENTO__AF150CA5D3EFF98F           6.6699999999999999                   15
+FUENTE_DATOS           PK__FUENTE_D__D899AF3D9E263D97                        0.0                    1
+ATLETA                 PK__ATLETA__E9B2FCFAB5F06632        5.0000000000000003E-2                 1950
+PARTICIPACION          PK__PARTICIP__E42D0FE0450EC937         50.619999999999997                 2414
+
+(9 rows affected)
+PS C:\Backups_Fase2> sqlcmd -S "CARLOSDLB\SQLEXPRESS" -E -C -Q "BACKUP DATABASE OlimpiadasDB_Deporte TO DISK = 'C:\Backups_Fase2\Carga_Deporte\OlimpiadasDB_Deporte_Diff_3_2024.bak' WITH DIFFERENTIAL, FORMAT, INIT, NAME = 'Diff 3 Deporte 2024', STATS = 10;"
+10 percent processed.
+20 percent processed.
+30 percent processed.
+40 percent processed.
+50 percent processed.
+60 percent processed.
+70 percent processed.
+80 percent processed.
+90 percent processed.
+100 percent processed.
+Processed 2216 pages for database 'OlimpiadasDB_Deporte', file 'OlimpiadasDB_Deporte' on file 1.
+Processed 1 pages for database 'OlimpiadasDB_Deporte', file 'OlimpiadasDB_Deporte_log' on file 1.
+BACKUP DATABASE WITH DIFFERENTIAL successfully processed 2217 pages in 0.191 seconds (90.649 MB/sec).
+PS C:\Backups_Fase2>
+
+--- REM5
+PS C:\Backups_Fase2> sqlcmd -S "CARLOSDLB\SQLEXPRESS" -E -C -Q "ALTER DATABASE OlimpiadasDB_Deporte SET SINGLE_USER WITH ROLLBACK IMMEDIATE; DROP DATABASE OlimpiadasDB_Deporte;"
+PS C:\Backups_Fase2> sqlcmd -S "CARLOSDLB\SQLEXPRESS" -E -C -Q "RESTORE DATABASE OlimpiadasDB_Deporte FROM DISK = 'C:\Backups_Fase2\Carga_Deporte\OlimpiadasDB_Deporte_Full.bak' WITH RECOVERY, STATS = 10;"
+10 percent processed.
+20 percent processed.
+30 percent processed.
+40 percent processed.
+50 percent processed.
+60 percent processed.
+70 percent processed.
+80 percent processed.
+90 percent processed.
+100 percent processed.
+Processed 4480 pages for database 'OlimpiadasDB_Deporte', file 'OlimpiadasDB_Deporte' on file 1.
+Processed 1 pages for database 'OlimpiadasDB_Deporte', file 'OlimpiadasDB_Deporte_log' on file 1.
+RESTORE DATABASE successfully processed 4481 pages in 0.079 seconds (443.056 MB/sec).
+PS C:\Backups_Fase2> sqlcmd -S "CARLOSDLB\SQLEXPRESS" -E -C -i "C:\Backups_Fase2\Scripts_Deporte\05_Validar_Restauracion_Deporte.sql"
+Changed database context to 'OlimpiadasDB_Deporte'.
+Tabla                TotalRegistros
+-------------------- --------------
+PAIS                            235
+POBLACION_PAIS                11520
+SEDE                             42
+EDICION_JUEGOS                   54
+DEPORTE                         147
+EVENTO                         2280
+FUENTE_DATOS                      9
+ATLETA                       244745
+PARTICIPACION                377552
+
+(9 rows affected)
+anio        Participaciones_Athletics
+----------- -------------------------
+       2012                      3810
+
+(1 rows affected)
+id_participacion id_atleta   id_edicion  id_evento   id_pais_representado medalla
+---------------- ----------- ----------- ----------- -------------------- ----------
+          391685      244745          53        1931                  220 NULL
+          391684      244744          53        2070                  332 NULL
+          391683      244743          53        2046                  332 NULL
+          391682      244743          53        2041                  332 NULL
+          391681      244742          54        2023                  362 Gold
+
+(5 rows affected)
+PS C:\Backups_Fase2>
+
+--- REM 6
+PS C:\Backups_Fase2> sqlcmd -S "CARLOSDLB\SQLEXPRESS" -E -C -Q "ALTER DATABASE OlimpiadasDB_Deporte SET SINGLE_USER WITH ROLLBACK IMMEDIATE; DROP DATABASE OlimpiadasDB_Deporte;"
+PS C:\Backups_Fase2> sqlcmd -S "CARLOSDLB\SQLEXPRESS" -E -C -Q "RESTORE DATABASE OlimpiadasDB_Deporte FROM DISK = 'C:\Backups_Fase2\Carga_Deporte\OlimpiadasDB_Deporte_Full.bak' WITH NORECOVERY; RESTORE DATABASE OlimpiadasDB_Deporte FROM DISK = 'C:\Backups_Fase2\Carga_Deporte\OlimpiadasDB_Deporte_Diff_1_2016.bak' WITH RECOVERY, STATS = 10;"
+Processed 4480 pages for database 'OlimpiadasDB_Deporte', file 'OlimpiadasDB_Deporte' on file 1.
+Processed 1 pages for database 'OlimpiadasDB_Deporte', file 'OlimpiadasDB_Deporte_log' on file 1.
+RESTORE DATABASE successfully processed 4481 pages in 0.082 seconds (426.847 MB/sec).
+10 percent processed.
+20 percent processed.
+30 percent processed.
+40 percent processed.
+50 percent processed.
+60 percent processed.
+70 percent processed.
+80 percent processed.
+90 percent processed.
+100 percent processed.
+Processed 1960 pages for database 'OlimpiadasDB_Deporte', file 'OlimpiadasDB_Deporte' on file 1.
+Processed 1 pages for database 'OlimpiadasDB_Deporte', file 'OlimpiadasDB_Deporte_log' on file 1.
+RESTORE DATABASE successfully processed 1961 pages in 0.041 seconds (373.511 MB/sec).
+PS C:\Backups_Fase2> sqlcmd -S "CARLOSDLB\SQLEXPRESS" -E -C -i "C:\Backups_Fase2\Scripts_Deporte\05_Validar_Restauracion_Deporte.sql"
+Changed database context to 'OlimpiadasDB_Deporte'.
+Tabla                TotalRegistros
+-------------------- --------------
+PAIS                            235
+POBLACION_PAIS                11520
+SEDE                             42
+EDICION_JUEGOS                   54
+DEPORTE                         147
+EVENTO                         2280
+FUENTE_DATOS                      9
+ATLETA                       244745
+PARTICIPACION                381525
+
+(9 rows affected)
+anio        Participaciones_Athletics
+----------- -------------------------
+       2016                      3973
+       2012                      3810
+
+(2 rows affected)
+id_participacion id_atleta   id_edicion  id_evento   id_pais_representado medalla
+---------------- ----------- ----------- ----------- -------------------- ----------
+          391685      244745          53        1931                  220 NULL
+          391684      244744          53        2070                  332 NULL
+          391683      244743          53        2046                  332 NULL
+          391682      244743          53        2041                  332 NULL
+          391681      244742          54        2023                  362 Gold
+
+(5 rows affected)
+PS C:\Backups_Fase2>
+
+--- REM 7
+PS C:\Backups_Fase2> sqlcmd -S "CARLOSDLB\SQLEXPRESS" -E -C -Q "ALTER DATABASE OlimpiadasDB_Deporte SET SINGLE_USER WITH ROLLBACK IMMEDIATE; DROP DATABASE OlimpiadasDB_Deporte;"
+PS C:\Backups_Fase2>
+
+PS C:\Backups_Fase2> sqlcmd -S "CARLOSDLB\SQLEXPRESS" -E -C -Q "RESTORE DATABASE OlimpiadasDB_Deporte FROM DISK = 'C:\Backups_Fase2\Carga_Deporte\OlimpiadasDB_Deporte_Full.bak' WITH NORECOVERY; RESTORE DATABASE OlimpiadasDB_Deporte FROM DISK = 'C:\Backups_Fase2\Carga_Deporte\OlimpiadasDB_Deporte_Diff_2_2020.bak' WITH RECOVERY, STATS = 10;"
+Processed 4480 pages for database 'OlimpiadasDB_Deporte', file 'OlimpiadasDB_Deporte' on file 1.
+Processed 1 pages for database 'OlimpiadasDB_Deporte', file 'OlimpiadasDB_Deporte_log' on file 1.
+RESTORE DATABASE successfully processed 4481 pages in 0.084 seconds (416.684 MB/sec).
+10 percent processed.
+20 percent processed.
+30 percent processed.
+40 percent processed.
+50 percent processed.
+60 percent processed.
+70 percent processed.
+80 percent processed.
+90 percent processed.
+100 percent processed.
+Processed 2216 pages for database 'OlimpiadasDB_Deporte', file 'OlimpiadasDB_Deporte' on file 1.
+Processed 1 pages for database 'OlimpiadasDB_Deporte', file 'OlimpiadasDB_Deporte_log' on file 1.
+RESTORE DATABASE successfully processed 2217 pages in 0.048 seconds (360.707 MB/sec).
+PS C:\Backups_Fase2>
+
+PS C:\Backups_Fase2> sqlcmd -S "CARLOSDLB\SQLEXPRESS" -E -C -i "C:\Backups_Fase2\Scripts_Deporte\05_Validar_Restauracion_Deporte.sql"
+Changed database context to 'OlimpiadasDB_Deporte'.
+Tabla                TotalRegistros
+-------------------- --------------
+PAIS                            235
+POBLACION_PAIS                11520
+SEDE                             42
+EDICION_JUEGOS                   54
+DEPORTE                         147
+EVENTO                         2280
+FUENTE_DATOS                      9
+ATLETA                       244745
+PARTICIPACION                383843
+
+(9 rows affected)
+anio        Participaciones_Athletics
+----------- -------------------------
+       2020                      2318
+       2016                      3973
+       2012                      3810
+
+(3 rows affected)
+id_participacion id_atleta   id_edicion  id_evento   id_pais_representado medalla
+---------------- ----------- ----------- ----------- -------------------- ----------
+          391685      244745          53        1931                  220 NULL
+          391684      244744          53        2070                  332 NULL
+          391683      244743          53        2046                  332 NULL
+          391682      244743          53        2041                  332 NULL
+          391681      244742          54        2023                  362 Gold
+
+(5 rows affected)
+PS C:\Backups_Fase2>
+
+--- REM 8
+PS C:\Backups_Fase2> sqlcmd -S "CARLOSDLB\SQLEXPRESS" -E -C -Q "ALTER DATABASE OlimpiadasDB_Deporte SET SINGLE_USER WITH ROLLBACK IMMEDIATE; DROP DATABASE OlimpiadasDB_Deporte;"
+PS C:\Backups_Fase2>
+
+PS C:\Backups_Fase2> sqlcmd -S "CARLOSDLB\SQLEXPRESS" -E -C -Q "RESTORE DATABASE OlimpiadasDB_Deporte FROM DISK = 'C:\Backups_Fase2\Carga_Deporte\OlimpiadasDB_Deporte_Full.bak' WITH NORECOVERY; RESTORE DATABASE OlimpiadasDB_Deporte FROM DISK = 'C:\Backups_Fase2\Carga_Deporte\OlimpiadasDB_Deporte_Diff_3_2024.bak' WITH RECOVERY, STATS = 10;"
+Processed 4480 pages for database 'OlimpiadasDB_Deporte', file 'OlimpiadasDB_Deporte' on file 1.
+Processed 1 pages for database 'OlimpiadasDB_Deporte', file 'OlimpiadasDB_Deporte_log' on file 1.
+RESTORE DATABASE successfully processed 4481 pages in 0.088 seconds (397.743 MB/sec).
+10 percent processed.
+20 percent processed.
+30 percent processed.
+40 percent processed.
+50 percent processed.
+60 percent processed.
+70 percent processed.
+80 percent processed.
+90 percent processed.
+100 percent processed.
+Processed 2216 pages for database 'OlimpiadasDB_Deporte', file 'OlimpiadasDB_Deporte' on file 1.
+Processed 1 pages for database 'OlimpiadasDB_Deporte', file 'OlimpiadasDB_Deporte_log' on file 1.
+RESTORE DATABASE successfully processed 2217 pages in 0.050 seconds (346.279 MB/sec).
+PS C:\Backups_Fase2>
+
+PS C:\Backups_Fase2> sqlcmd -S "CARLOSDLB\SQLEXPRESS" -E -C -i "C:\Backups_Fase2\Scripts_Deporte\05_Validar_Restauracion_Deporte.sql"
+Changed database context to 'OlimpiadasDB_Deporte'.
+Tabla                TotalRegistros
+-------------------- --------------
+PAIS                            235
+POBLACION_PAIS                11520
+SEDE                             42
+EDICION_JUEGOS                   54
+DEPORTE                         147
+EVENTO                         2280
+FUENTE_DATOS                      9
+ATLETA                       244745
+PARTICIPACION                386195
+
+(9 rows affected)
+anio        Participaciones_Athletics
+----------- -------------------------
+       2024                      2352
+       2020                      2318
+       2016                      3973
+       2012                      3810
+
+(4 rows affected)
+id_participacion id_atleta   id_edicion  id_evento   id_pais_representado medalla
+---------------- ----------- ----------- ----------- -------------------- ----------
+          391685      244745          53        1931                  220 NULL
+          391684      244744          53        2070                  332 NULL
+          391683      244743          53        2046                  332 NULL
+          391682      244743          53        2041                  332 NULL
+          391681      244742          54        2023                  362 Gold
+
+(5 rows affected)
+PS C:\Backups_Fase2>
+
